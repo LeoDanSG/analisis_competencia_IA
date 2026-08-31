@@ -78,7 +78,6 @@ with st.sidebar:
 
     st.header("⚙️ Configuración")
 
-    # Cargar archivo
     archivo_subido = st.file_uploader(
         "Cargar reporte (Excel)",
         type=["xlsx", "xls"]
@@ -117,10 +116,8 @@ if archivo_subido is not None:
 
         st.subheader("🔍 Filtros de Búsqueda")
 
-        # Primera fila
         col_busqueda1, col_busqueda2 = st.columns(2)
 
-        # Seleccionar campo
         with col_busqueda1:
 
             campo_busqueda = st.selectbox(
@@ -133,7 +130,6 @@ if archivo_subido is not None:
                 ]
             )
 
-        # Escribir búsqueda
         with col_busqueda2:
 
             texto_busqueda = st.text_input(
@@ -148,7 +144,6 @@ if archivo_subido is not None:
 
         col_filtro1, col_filtro2 = st.columns(2)
 
-        # Cliente
         with col_filtro1:
 
             lista_clientes = (
@@ -161,8 +156,6 @@ if archivo_subido is not None:
                 lista_clientes
             )
 
-
-        # Origen
         with col_filtro2:
 
             origen_seleccionado = st.multiselect(
@@ -173,21 +166,42 @@ if archivo_subido is not None:
 
 
         # ---------------------------------------------------------
+        # NUEVO: CAJA DE PROMPT
+        # ---------------------------------------------------------
+
+        st.markdown("---")
+
+        st.subheader("🤖 Consulta al asistente")
+
+        prompt_usuario = st.text_area(
+            "Escribe una indicación sobre los datos:",
+            placeholder=(
+                "Ejemplo: ¿Qué productos son de la competencia?\n"
+                "Ejemplo: Muéstrame los productos del cliente seleccionado.\n"
+                "Ejemplo: ¿Cuál es el producto con mayor cantidad?"
+            ),
+            height=100
+        )
+
+        if prompt_usuario.strip():
+
+            st.info(
+                f"📝 Indicación recibida: {prompt_usuario}"
+            )
+
+
+        # ---------------------------------------------------------
         # APLICAR FILTROS
         # ---------------------------------------------------------
 
         df_filtrado = df.copy()
 
-
-        # Filtro de cliente
         if cliente_seleccionado != "Todos":
 
             df_filtrado = df_filtrado[
                 df_filtrado['Cliente'] == cliente_seleccionado
             ]
 
-
-        # Filtro de origen
         if origen_seleccionado:
 
             df_filtrado = df_filtrado[
@@ -196,8 +210,6 @@ if archivo_subido is not None:
                 )
             ]
 
-
-        # Filtro de búsqueda
         if texto_busqueda.strip():
 
             texto = texto_busqueda.strip().lower()
@@ -223,14 +235,11 @@ if archivo_subido is not None:
             f"📈 Resumen para: {cliente_seleccionado}"
         )
 
-
         col_met1, col_met2, col_met3 = st.columns(3)
-
 
         total_productos = (
             df_filtrado['Cantidad'].sum()
         )
-
 
         total_propios = (
             df_filtrado[
@@ -238,25 +247,21 @@ if archivo_subido is not None:
             ]['Cantidad'].sum()
         )
 
-
         total_competencia = (
             df_filtrado[
                 df_filtrado['Origen'] == 'Competencia'
             ]['Cantidad'].sum()
         )
 
-
         col_met1.metric(
             label="Total Unidades",
             value=f"{total_productos:,.0f}"
         )
 
-
         col_met2.metric(
             label="Unidades Propias",
             value=f"{total_propios:,.0f}"
         )
-
 
         col_met3.metric(
             label="Unidades Competencia",
@@ -265,13 +270,12 @@ if archivo_subido is not None:
 
 
         # ---------------------------------------------------------
-        # RESULTADOS DE BÚSQUEDA
+        # RESULTADOS
         # ---------------------------------------------------------
 
         st.markdown("---")
 
         st.subheader("📋 Resultados")
-
 
         if df_filtrado.empty:
 
@@ -294,13 +298,11 @@ if archivo_subido is not None:
 
         col_graf1, col_graf2 = st.columns([2, 1])
 
-
         with col_graf1:
 
             st.markdown(
                 "#### Distribución de Productos"
             )
-
 
             resumen_prod = (
                 df_filtrado
@@ -310,7 +312,6 @@ if archivo_subido is not None:
                 .sum()
                 .reset_index()
             )
-
 
             fig_bar = px.bar(
                 resumen_prod,
@@ -327,19 +328,16 @@ if archivo_subido is not None:
                 title="Unidades por Producto"
             )
 
-
             st.plotly_chart(
                 fig_bar,
                 use_container_width=True
             )
-
 
         with col_graf2:
 
             st.markdown(
                 "#### Detalle de Datos"
             )
-
 
             st.dataframe(
                 df_filtrado[
