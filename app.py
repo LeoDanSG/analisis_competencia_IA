@@ -259,26 +259,7 @@ if archivo_subido is not None:
             )
 
         # ---------------------------------------------------------
-        # CAJA DE PROMPT (CONSULTA AL ASISTENTE)
-        # ---------------------------------------------------------
-        st.markdown("---")
-        st.subheader("🤖 Consulta al asistente")
-
-        prompt_usuario = st.text_area(
-            "Escribe una indicación sobre los datos:",
-            placeholder=(
-                "Ejemplo: ¿Qué productos son de la competencia?\n"
-                "Ejemplo: Muéstrame los productos del cliente seleccionado.\n"
-                "Ejemplo: ¿Cuál es el producto con mayor cantidad?"
-            ),
-            height=100
-        )
-
-        if prompt_usuario.strip():
-            st.info(f"📝 Indicación recibida: {prompt_usuario}")
-
-        # ---------------------------------------------------------
-        # APLICAR FILTROS
+        # APLICAR FILTROS (Creación de df_filtrado)
         # ---------------------------------------------------------
         df_filtrado = df.copy()
 
@@ -300,6 +281,84 @@ if archivo_subido is not None:
                 .str.lower()
                 .str.contains(texto, na=False)
             ]
+
+        # ---------------------------------------------------------
+        # CAJA DE PROMPT (CONSULTA AL ASISTENTE)
+        # ---------------------------------------------------------
+        st.markdown("---")
+        st.subheader("🤖 Consulta al asistente")
+
+        prompt_usuario = st.text_area(
+            "Escribe una indicación sobre los datos:",
+            placeholder=(
+                "Ejemplo: ¿Qué productos son de la competencia?\n"
+                "Ejemplo: Muéstrame los productos del cliente seleccionado.\n"
+                "Ejemplo: ¿Cuál es el producto con mayor cantidad?\n"
+                "Ejemplo: Dame un resumen general"
+            ),
+            height=100
+        )
+
+        if prompt_usuario.strip():
+            txt = prompt_usuario.strip().lower()
+            st.markdown("### 💡 Respuesta del Asistente")
+
+            # 1. Consulta sobre productos de la COMPETENCIA
+            if "competencia" in txt or "rival" in txt:
+                df_comp = df_filtrado[df_filtrado['Origen'].str.lower() == 'competencia'] if 'Origen' in df_filtrado.columns else pd.DataFrame()
+                if not df_comp.empty:
+                    total_comp = df_comp['Cantidad'].sum()
+                    st.warning(f"⚠️ Se identificaron **{len(df_comp)} registros** de la competencia con un total de **{total_comp:,.0f} unidades**.")
+                    cols_ver = [c for c in ['ID_Pedido', 'Producto', 'Cliente', 'Cantidad'] if c in df_comp.columns]
+                    st.dataframe(df_comp[cols_ver], hide_index=True, use_container_width=True)
+                else:
+                    st.info("No se encontraron productos de la competencia en el filtro o selección actual.")
+
+            # 2. Consulta sobre productos PROPIOS
+            elif "propio" in txt or "propios" in txt or "nuestros" in txt:
+                df_prop = df_filtrado[df_filtrado['Origen'].str.lower() == 'propio'] if 'Origen' in df_filtrado.columns else pd.DataFrame()
+                if not df_prop.empty:
+                    total_prop = df_prop['Cantidad'].sum()
+                    st.success(f"✅ Se encontraron **{len(df_prop)} registros propios** con un total de **{total_prop:,.0f} unidades**.")
+                    cols_ver = [c for c in ['ID_Pedido', 'Producto', 'Cliente', 'Cantidad'] if c in df_prop.columns]
+                    st.dataframe(df_prop[cols_ver], hide_index=True, use_container_width=True)
+                else:
+                    st.info("No se encontraron productos propios en la selección actual.")
+
+            # 3. Consulta sobre el producto MÁS VENDIDO / MAYOR CANTIDAD
+            elif "mas vendido" in txt or "mayor cantidad" in txt or "top" in txt or "máximo" in txt or "maximo" in txt:
+                if 'Producto' in df_filtrado.columns and 'Cantidad' in df_filtrado.columns:
+                    group_cols = [c for c in ['Producto', 'Origen'] if c in df_filtrado.columns]
+                    top_prod = df_filtrado.groupby(group_cols)['Cantidad'].sum().reset_index().sort_values(by='Cantidad', ascending=False)
+                    if not top_prod.empty:
+                        lider = top_prod.iloc[0]
+                        origen_info = f" ({lider['Origen']})" if 'Origen' in lider else ""
+                        st.success(f"🏆 El producto con mayor cantidad es **{lider['Producto']}**{origen_info} con **{lider['Cantidad']:,.0f} unidades**.")
+                        st.markdown("**Ranking de productos:**")
+                        st.dataframe(top_prod, hide_index=True, use_container_width=True)
+
+            # 4. Resumen general automático
+            elif "resumen" in txt or "analisis" in txt or "general" in txt or "cuota" in txt:
+                tot_unid = df_filtrado['Cantidad'].sum() if 'Cantidad' in df_filtrado.columns else 0
+                tot_prop = df_filtrado[df_filtrado['Origen'].str.lower() == 'propio']['Cantidad'].sum() if 'Origen' in df_filtrado.columns else 0
+                tot_comp = df_filtrado[df_filtrado['Origen'].str.lower() == 'competencia']['Cantidad'].sum() if 'Origen' in df_filtrado.columns else 0
+                
+                st.write(f"📊 **Análisis del conjunto de datos activo:**")
+                st.write(f"- **Total de pedidos:** {len(df_filtrado)}")
+                st.write(f"- **Total de unidades:** {tot_unid:,.0f}")
+                st.write(f"- **Participación Propia:** {tot_prop:,.0f} unidades ({(tot_prop/tot_unid*100) if tot_unid > 0 else 0:.1f}%)")
+                st.write(f"- **Participación Competencia:** {tot_comp:,.0f} unidades ({(tot_comp/tot_unid*100) if tot_unid > 0 else 0:.1f}%)")
+
+            # 5. Búsqueda y filtrado dinámico general por palabra clave
+            else:
+                st.write("🔍 **Resultados encontrados en la tabla:**")
+                coincidencias = df_filtrado[
+                    df_filtrado.apply(lambda row: row.astype(str).str.lower().str.contains(txt, na=False).any(), axis=1)
+                ]
+                if not coincidencias.empty:
+                    st.dataframe(coincidencias, hide_index=True, use_container_width=True)
+                else:
+                    st.info("No se encontraron coincidencias exactas en la tabla. Intenta con palabras clave como: 'competencia', 'propio', 'más vendido' o 'resumen'.")
 
         # ---------------------------------------------------------
         # RESUMEN Y MÉTRICAS
